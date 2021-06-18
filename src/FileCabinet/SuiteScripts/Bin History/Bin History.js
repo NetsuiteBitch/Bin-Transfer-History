@@ -55,20 +55,11 @@ function main( logModule, queryModule, serverWidgetModule , search) {
                 }
             );
 
-            var Lot_Field = form.addField({
-                id: 'lotnumber',
-                type: serverWidget.FieldType.TEXT,
-                label: 'Lot Number'
-            })
-
-
             var From_Date = form.addField({
-                    id: 'fromdate',
-                    type: serverWidget.FieldType.DATE,
-                    label: 'From'
-                })
-            
-            
+                id: 'fromdate',
+                type: serverWidget.FieldType.DATE,
+                label: 'From'
+            })
             From_Date.isMandatory = true
 
             var To_Date = form.addField({
@@ -84,13 +75,8 @@ function main( logModule, queryModule, serverWidgetModule , search) {
             if ( context.request.method == 'POST' ) {
 
 
-                From_Date.defaultValue = context.request.parameters.fromdate
-                To_Date.defaultValue = context.request.parameters.todate
-
-                if (context.request.parameters.bin || context.request.parameters.item || context.request.parameters.lotnumber){
+                if (context.request.parameters.bin || context.request.parameters.item){
                     if (context.request.parameters.item){
-                        Item_Number.defaultValue = context.request.parameters.item
-
 
                         var itemquerypiece = `AND table1.itinternalid = '${context.request.parameters.item}'\n`
                     }else {
@@ -98,24 +84,14 @@ function main( logModule, queryModule, serverWidgetModule , search) {
                     }
 
                     if (context.request.parameters.bin){
-                        Bin_Number.defaultValue = context.request.parameters.bin
                         var binnumber = search.lookupFields({
                             type: "bin",
                             id:context.request.parameters.bin,
                             columns: "binnumber"
                         }).binnumber
-                        var binquerypiece = `AND (table1.From_Bin = '${binnumber}' OR table2.To_Bin = '${binnumber}')\n`
-                    }else {binquerypiece = ''}
-
-                    if (context.request.parameters.lotnumber){
-                        Lot_Field.defaultValue = context.request.parameters.lotnumber
-                        var lotquerypiece = `AND table1.Lot_Number LIKE '%${context.request.parameters.lotnumber}%'`
-                    }else{lotquerypiece = ''}
-
-
-
-
-                    var querypiece = itemquerypiece + binquerypiece + lotquerypiece
+                        var binquerypeice = `AND (table1.From_Bin = '${binnumber}' OR table2.To_Bin = '${binnumber}')\n`
+                    }else {binquerypeice = ''}
+                    var querypiece = itemquerypiece + binquerypeice
 
                 } else{
                     var querypiece = ''
@@ -140,7 +116,7 @@ function formProcess( context, form , querypiece, fromdate, todate) {
     var theQuery = `Select
     '<a style="color:#0394fc;" href="https://4287944.app.netsuite.com/app/accounting/transactions/bintrnfr.nl?id=' || table1.id || '&whence=" >' || table1.tranid || '</a>' as Document_Number,
                     table1.trandate,
-                    table1.User,
+                    table1.blame,
                     table1.Item_Number,
                     table1.description,
                     table1.From_Bin,
@@ -154,7 +130,7 @@ function formProcess( context, form , querypiece, fromdate, todate) {
                 from (SELECT Transaction.id,
                     Transaction.tranid,
                     Transaction.trandate,
-                    BUILTIN.DF(Transaction.createdby) as USER,
+                    BUILTIN.DF(Transaction.createdby) as Blame,
                     BUILTIN.DF(Transactionline.item) as Item_Number,
                     BUILTIN.DF(Transaction.type) as type,
                     item.displayname as description,
@@ -212,13 +188,12 @@ function formProcess( context, form , querypiece, fromdate, todate) {
                 Transaction.Tranid) as table2
                 on
                 table1.invid = table2.invid - 1
-                WHERE table2.quantity > 0
+                WHERE 1 = 1
+                AND table2.quantity > 0
                 
                 ${querypiece}
-                
-                ORDER BY table1.trandate, table1.Document_Number
                 `
-    log.debug(new Date(),theQuery)
+    log.debug("Query",theQuery)
 
     try {
 
